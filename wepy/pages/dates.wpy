@@ -1,0 +1,51 @@
+<style>
+page {
+    background-color: #e5e5e5;
+}
+.row {
+  background-color:#fff;
+  margin-bottom: 20rpx;
+}
+.label {
+    border-bottom: 1rpx solid #e5e5e5;
+    font-size: 28rpx;
+    padding: 12rpx 24rpx;
+}
+</style>
+<template>
+  <view class="container">
+    <view class="row">
+    <view class="label">日期选择</view>
+      <datepicker bindonselectdate="handleSelecteDate" />
+    </view>
+
+    <!-- <view class="row">
+    <view class="label">日期选择(附带时间)</view>
+      <datepicker bindonselectdate="handleSelecteDate" enableTime="{{true}}"/>
+    </view> -->
+
+    <!-- <view class="row">
+    <view class="label">日期选择(传入默认选择时间)</view> -->
+    <!-- <datepicker date="{{'2018/01/02'}}" bindonselectdate="handleSelecteDate" /> -->
+    <!-- <datepicker bindonselectdate="handleSelecteDate" /> -->
+    <!-- </view> -->
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import datepicker from '../components/datepicker';
+export default class Indexs extends wepy.page {
+  config = {
+    navigationBarTitleText: '日历组件'
+  }
+  components = {
+    datepicker
+  }
+  data = {}
+  onLoad () {}
+  // handleSelecteDate(e) {
+  //   wx.showToast({ title: `${e.detail.date}`, icon: false })
+  // }
+}
+</script>

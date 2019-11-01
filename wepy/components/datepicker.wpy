@@ -1,0 +1,554 @@
+<style lang="less" scoped>
+/**index.wxss**/
+
+.container {
+  padding: 0px;
+  height: 100%;
+}
+
+.flex {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+}
+
+.date-display {
+  width: 100%;
+  height: 90rpx;
+  line-height: 80rpx;
+  color: #f44336;
+}
+
+.week-cell {
+  display: table-cell;
+  width: 14.28%;
+  text-align: center;
+}
+
+.selected-date {
+  flex: 6;
+  text-align: center;
+  font-size: 37rpx;
+}
+
+.next-prev {
+  flex: 1;
+  text-align: center;
+}
+
+.arrow {
+  height: 25rpx;
+  width: 25rpx;
+  border: solid #f44336;
+  border-width: 0 6rpx 6rpx 0;
+  margin: 22.5rpx auto;
+}
+
+.down {
+  width: 20rpx;
+  height: 20rpx;
+  margin: -10rpx 0 0 12rpx;
+  transform: rotate(45deg);
+  border-width: 0 2rpx 2rpx 0;
+}
+
+.prev {
+  transform: rotate(135deg);
+}
+
+.next {
+  transform: rotate(-45deg);
+}
+
+.date-picker {
+  background-color: #fbfcfc;
+  border-bottom: 0.3rpx solid #e5e7e9;
+}
+
+.week-display {
+  font-size: 22rpx;
+  width: 100%;
+}
+
+.date-cell {
+  display: table-cell;
+  width: 14.28%;
+  text-align: center;
+  height: 70rpx;
+  font-size: 35rpx;
+  border-top: 0.3rpx solid #e5e7e9;
+  z-index: 1;
+}
+
+.date-bg {
+  width: 55rpx;
+  height: 55rpx;
+  margin: auto;
+  margin-top: 8rpx;
+  border-radius: 50%;
+  line-height: 55rpx;
+}
+
+.weekend {
+  color: #bdbdbd;
+}
+
+.selected {
+  color: white;
+  background-color: black;
+}
+
+.today {
+  color: #f44336;
+}
+
+.today-selected {
+  color: white;
+  background-color: #f44336;
+}
+</style>
+<template>
+  <view class="container">
+    <view class="date-display flex">
+      <view class="next-prev" bindtap="changeMonth" data-id="prev">
+        <view class="arrow prev"></view>
+      </view>
+      <picker
+        style="flex:6;width:100%"
+        value="{{currYear+'-'+currMonth}}"
+        fields="month"
+        mode="date"
+        bindchange="handleDatePickerChange"
+      >
+        <view class="selected-date" style="display:flex;align-items:center;justify-content:center">
+          <view>{{currYear}}年{{currMonth}}月</view>
+          <view class="arrow down"/>
+        </view>
+      </picker>
+      <view class="next-prev" bindtap="changeMonth" data-id="next">
+        <view class="arrow next"></view>
+      </view>
+    </view>
+    <view class="week-display flex" style="margin-bottom: 16rpx;">
+      <view wx:key="{{index}}" wx:for="{{week}}" class="week-cell {{item.class}}">{{item.value}}</view>
+    </view>
+    <view class="date-picker">
+      <view class="flex">
+        <view wx:key="{{index}}" wx:for="{{emptyGrids}}" class="date-cell"></view>
+        <view
+          wx:key="{{index}}"
+          wx:for="{{days}}"
+          data-item="{{ item }}"
+          data-index="{{ index }}"
+          class="date-cell"
+          bindtap="handleSelectDate"
+          data-selected="{{[currYear, currMonth, item.value]}}"
+        >
+          <view
+            class="{{item.class}}{{item.selected? ' selected': ''}}"
+            data-selected="{{[currYear, currMonth, item.value]}}"
+          >{{item.value}}</view>
+        </view>
+      </view>
+    </view>
+    <view class="actions" style="display:flex;box-sizing: border-box; padding:12rpx 24rpx;">
+      <!-- <picker mode="time" bindchange="handleTimePickerChange" value="{{time}}">
+        <view
+          class=""
+          style="display:{{enableTime ? 'flex' : 'none'}};flex:1;font-size:24rpx;align-items:center"
+        >
+          时间
+          <input
+            value="{{time||'00:00'}}"
+            disabled
+            style="margin-left:12rpx;width:80rpx;padding:0rpx 12rpx;border:1px solid #e5e5e5;"
+          />
+        </view>
+      </picker> -->
+      <view class="" style="display:flex;justify-content:flex-end;align-items:flex-end;flex:2">
+        <button
+          bindtap="handleReset"
+          style="margin:0;padding-left:20rpx;padding-right:20rpx;"
+          size="mini"
+          type="default"
+        >清空</button>
+        <!-- <button
+          bindtap="handleChooseToday"
+          style="margin:0;padding-left:20rpx;padding-right:20rpx;margin-left:24rpx;"
+          size="mini"
+          type="default"
+        >今天</button> -->
+        <button
+          bindtap="handAll"
+          style="margin:0;padding-left:20rpx;padding-right:20rpx;margin-left:24rpx;"
+          size="mini"
+          type="default"
+        >全选</button>
+        <button
+          bindtap="handleConfirm"
+          style="margin:0;padding-left:20rpx;padding-right:20rpx;margin-left:24rpx;"
+          size="mini"
+          type="warn"
+        >确定</button>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+const today = new Date();
+const week = [
+  { value: '周日', class: 'weekend' },
+  { value: '周一', class: '' },
+  { value: '周二', class: '' },
+  { value: '周三', class: '' },
+  { value: '周四', class: '' },
+  { value: '周五', class: '' },
+  { value: '周六', class: 'weekend' }
+];
+export default class Datepicker extends wepy.component {
+  props = {
+    show: {
+      type: Boolean,
+      value: false
+    },
+    enableTime: {
+      type: Boolean,
+      value: false
+    },
+    date: {
+      type: String,
+      value: '',
+      observer: 'init'
+    }
+  };
+  data = {
+    currYear: '',
+    currMonth: '',
+    dayInWeek: '',
+    dayInMonth: '',
+    week: '',
+    time: '',
+    selected: '',
+    days: [],
+    emptyGrids: '',
+    selectList: []
+  };
+  onLoad() {
+    // 每次载入时，默认被选中的日期时当前这天
+    this.init();
+  }
+  // 生命周期函数，可以为函数，或一个在methods段中定义的方法名
+  methods = {
+    // 更改月份
+    changeMonth (e) {
+      let id = e.currentTarget.dataset.id;
+      let y = this.data.currYear;
+      let m = this.data.currMonth;
+      m = id === 'prev' ? m - 1 : m + 1;
+      if (id === 'prev' && m < 1) {
+        y -= 1;
+        m = 12;
+      }
+      if (id === 'next' && m > 12) {
+        y += 1;
+        m = 1;
+      }
+      this.currYear = y
+      this.currMonth = m
+      // 重新加载月份
+      let emptyGrids = this.calEmptyGrid(y, m);
+      if (emptyGrids === 7) {
+        emptyGrids = 0
+      }
+      this.emptyGrids = emptyGrids
+      let days = [];
+      let daysnum = this.calDaysInMonth(y, m);
+      for (var i = 1; i <= daysnum; i++) {
+        let ifToday = this.isToday(y, m, i);
+        // let isSelected = (selected[0] === y && selected[1] === m && selected[2] === i);
+        let today = ifToday ? 'today' : '';
+        // let select = isSelected ? 'selected' : '';
+        let weekend = this.isWeekend(emptyGrids, i) ? 'weekend' : '';
+        let day = {
+          value: i,
+          class: `date-bg ${weekend} ${today}`,
+          selected: false
+        };
+        days.push(day);
+        for (var j = 0; j < this.selectList.length; j++) {
+          if (this.selectList[j][0] === this.currYear && this.selectList[j][1] === this.currMonth && this.selectList[j][2] === i) {
+            days[i - 1].selected = true
+          }
+        }
+      }
+      this.days = days
+      this.$apply();
+    },
+    // 选择某天
+    handleSelectDate (e) {
+      let data = e.target.dataset.selected;
+      // let selected = [data[0], data[1], data[2]];
+      if (this.days[data[2] - 1].selected) {
+        for (let i = 0; i < this.selectList.length; i++) {
+          if (data[2] === this.selectList[i][2]) {
+            this.selectList.splice(i, 1);
+            console.log(this.selectList)
+          }
+        }
+      } else {
+        let selected = [data[0], data[1], data[2]];
+        this.selectList.push(selected)
+        console.log(this.selectList)
+      }
+      this.$apply();
+      this.testSelect(data[2]);
+      // this.currYear = data[0]
+      // this.currMonth = data[1]
+      // this.days = days
+    },
+
+    // 今天
+    // handleChooseToday() {
+    //   // this.setData({ date: today.toString() });
+    //   today.toString();
+    //   this.$apply();
+    //   this.init();
+    // },
+
+    // 全选
+    handAll() {
+      // 本月全选
+      for (let i = 1; i <= this.days.length; i++) {
+        this.days[i - 1].selected = true
+        let selected = [this.currYear, this.currMonth, i]
+        this.selectList.push(selected);
+      }
+      // 去重
+      for (var j = 0; j < this.selectList.length; j++) {
+        for (var k = j + 1; k < this.selectList.length; k++) {
+          if (this.selectList[j][0] === this.selectList[k][0] && this.selectList[j][1] === this.selectList[k][1] && this.selectList[j][2] === this.selectList[k][2]) {
+            this.selectList.splice(k, 1);
+          }
+        }
+      }
+      console.log(this.selectList)
+      // console.log(this.selectList)
+      this.$apply();
+    },
+
+    // 确定
+    handleConfirm() {
+      const { selected, enableTime } = this.data
+      if (selected && selected.length > 0) {
+        let dateStr = selected.join('/') + ' ' + this.data.time
+        let dateStr1 = this.formatTime(new Date(dateStr), enableTime ? 'yyyy-MM-dd hh:mm' : 'yyyy-MM-dd')
+        console.log(dateStr1)
+      }
+    },
+    // 日期选择器
+    handleDatePickerChange(e) {
+      let [year, month] = e.detail.value.split('-');
+      let y = parseInt(year);
+      let m = parseInt(month);
+      // this.setData({ currYear: year, currMonth: month });
+      this.currYear = y
+      this.currMonth = m
+
+      // 重新加载月份
+      let emptyGrids = this.calEmptyGrid(y, m);
+      if (emptyGrids === 7) {
+        emptyGrids = 0
+      }
+      this.emptyGrids = emptyGrids
+      let days = [];
+      let daysnum = this.calDaysInMonth(y, m);
+      for (var i = 1; i <= daysnum; i++) {
+        let ifToday = this.isToday(y, m, i);
+        // let isSelected = (selected[0] === y && selected[1] === m && selected[2] === i);
+        let today = ifToday ? 'today' : '';
+        // let select = isSelected ? 'selected' : '';
+        let weekend = this.isWeekend(emptyGrids, i) ? 'weekend' : '';
+        let day = {
+          value: i,
+          class: `date-bg ${weekend} ${today}`,
+          selected: false
+        };
+        days.push(day);
+        for (var j = 0; j < this.selectList.length; j++) {
+          if (this.selectList[j][0] === this.currYear && this.selectList[j][1] === this.currMonth && this.selectList[j][2] === i) {
+            days[i - 1].selected = true
+          }
+        }
+      }
+      this.days = days
+      this.$apply();
+      // this.$apply();
+      // this.calDays(year, month);
+    },
+    // 时间点选择
+    // handleTimePickerChange(e) {
+    //   const time = e.detail.value;
+    //   this.setData({ time });
+    // },
+
+    // 清空
+    handleReset(e) {
+      for (let i = 1; i <= this.days.length; i++) {
+        this.days[i - 1].selected = false
+      }
+      this.selectList = []
+      this.$apply();
+    }
+  };
+  // 日期多选择
+  testSelect(d) {
+    for (let i = 1; i <= this.days.length; i++) {
+      if (this.days[i - 1].value === d) {
+        let selected = this.days[i - 1].selected
+        this.days[i - 1].selected = !selected
+      }
+    }
+    this.$apply();
+  };
+  // 时间函数
+  formatTime(date, fmt = 'yyyy-MM-dd hh:mm:ss') {
+    // author: meizz
+    var o = {
+      'M+': date.getMonth() + 1, // 月份
+      'd+': date.getDate(), // 日
+      'h+': date.getHours(), // 小时
+      'm+': date.getMinutes(), // 分
+      's+': date.getSeconds(), // 秒
+      'q+': Math.floor((date.getMonth() + 3) / 3), // 季度
+      S: date.getMilliseconds() // 毫秒
+    };
+    if (/(y+)/.test(fmt)) {
+      fmt = fmt.replace(
+        RegExp.$1,
+        (date.getFullYear() + '').substr(4 - RegExp.$1.length)
+      );
+    }
+    for (var k in o) {
+      if (new RegExp('(' + k + ')').test(fmt)) {
+        fmt = fmt.replace(
+          RegExp.$1,
+          RegExp.$1.length === 1
+            ? o[k]
+            : ('00' + o[k]).substr(('' + o[k]).length)
+        );
+      }
+    }
+    return fmt;
+  }
+  isDate(date) {
+    if (date === null || date === undefined) {
+      return false;
+    }
+    return new Date(date).getDate() === date.substring(date.length - 2);
+  }
+
+  isLeapYear(y) {
+    return y % 400 === 0 || (y % 4 === 0 && y % 100 !== 0);
+  }
+
+  isToday(y, m, d) {
+    return (
+      y === today.getFullYear() &&
+      m === today.getMonth() + 1 &&
+      d === today.getDate()
+    );
+  }
+  // 是否周末
+  isWeekend(emptyGrids, d) {
+    return (emptyGrids + d) % 7 === 0 || (emptyGrids + d - 1) % 7 === 0;
+  }
+  // 返回星期几
+  calEmptyGrid(y, m) {
+    const result = new Date(`${y}/${m}/01 00:00:00`).getUTCDay();
+    return result + 1 || '';
+  }
+  // 每月天数
+  calDaysInMonth(y, m) {
+    let leapYear = this.isLeapYear(y);
+    if (m === 2 && leapYear) {
+      return 29;
+    }
+    if (m === 2 && !leapYear) {
+      return 28;
+    }
+    if ([4, 6, 9, 11].includes(m)) {
+      return 30;
+    }
+    return 31;
+  }
+
+  calWeekDay(y, m, d) {
+    return new Date(`${y}/${m}/${d} 00:00:00`).getUTCDay() || '';
+  }
+
+  calDays(y, m) {
+    // let { selected } = this.data;
+    let emptyGrids = this.calEmptyGrid(y, m);
+    if (emptyGrids === 7) {
+      emptyGrids = 0
+    }
+    this.emptyGrids = emptyGrids
+    let days = [];
+    let daysnum = this.calDaysInMonth(y, m);
+    for (let i = 1; i <= daysnum; i++) {
+      let ifToday = this.isToday(y, m, i);
+      // let isSelected = (selected[0] === y && selected[1] === m && selected[2] === i);
+      let today = ifToday ? 'today' : '';
+      // let select = isSelected ? 'selected' : '';
+      let weekend = this.isWeekend(emptyGrids, i) ? 'weekend' : '';
+      let day = {
+        value: i,
+        class: `date-bg ${weekend} ${today}`,
+        selected: false
+      };
+      days.push(day);
+    }
+    // this.days = days.slice(0, this.calDaysInMonth(y, m))
+    this.days = days
+    // console.log(this.days)
+    this.$apply();
+  }
+
+  init () {
+    const { date } = this.data;
+    const dateTime = this.isDate(date) ? new Date(date) : today;
+    const year = dateTime.getFullYear();
+    const month = dateTime.getMonth() + 1;
+    const dayInMonth = dateTime.getDate();
+    const dayInWeek = dateTime.getDay();
+    const time = this.formatTime(dateTime, 'hh:mm');
+    // const selected = [year, month, dayInMonth];
+    this.currYear = year
+    this.currMonth = month
+    this.dayInWeek = dayInWeek
+    this.dayInMonth = dayInMonth
+    this.week = week
+    this.time = time
+    this.selected = []
+    this.$apply();
+    // this.setData({
+    //   currYear: year,
+    //   currMonth: month,
+    //   dayInWeek,
+    //   dayInMonth,
+    //   week,
+    //   time,
+    //   selected
+    // });
+
+    // const emptyGrids = this.calEmptyGrid(year, month);
+    // const days = this.calEmptyGrid(year, month);
+    // this.setData({ emptyGrids, days });
+    this.calEmptyGrid(year, month);
+    this.calDays(year, month)
+  }
+}
+</script>

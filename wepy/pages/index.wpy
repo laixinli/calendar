@@ -1,0 +1,35 @@
+<style lang="less">
+</style>
+<template>
+  <view >
+    <inaver />
+    <view class="container">
+      <calendar date="{{date}}"></calendar>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import calendar from '../components/calendar';
+import inaver from '../components/inaver';
+export default class Index extends wepy.page {
+  config = {
+    navigationBarTitleText: '日历组件'
+  }
+  components = {
+    inaver,
+    calendar
+  }
+  mixins = []
+  data = {
+    date: '2019-08-02'
+  }
+  computed = {}
+  methods = {}
+  events = {}
+  onLoad () {
+    this.$invoke('calendar', 'show')
+  }
+}
+</script>

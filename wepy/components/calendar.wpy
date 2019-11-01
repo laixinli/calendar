@@ -1,0 +1,537 @@
+<style lang="less" scoped>
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.clearfix:after {
+  content: "";
+  height: 0;
+  line-height: 0;
+  display: block;
+  visibility: hidden;
+  clear: both;
+}
+.calendar-bg {
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  position: absolute;
+  // top: 0;
+  left: 0;
+  // bottom: 0;
+  right: 0;
+  z-index: 100;
+  transition: 0.3s;
+}
+.calendar-wrapper {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 101;
+  background-color: white;
+  .confirm {
+    position: absolute;
+    bottom: 30rpx;
+    right: 50rpx;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    align-items: center;
+    font-size: 28rpx;
+    // border-radius: 50%;
+  }
+  .confirm_btn {
+    background-color: #efefef;
+    color: #32b650;
+    padding: 0 20rpx;
+    line-height: 60rpx;
+    box-shadow: 0 1px 2px rgba(150, 150, 150, 0.3);
+    border-radius: 30rpx;
+    z-index: 999;
+  }
+  .confirm_btn_active {
+    background-color: #32b650;
+    color: #fff;
+  }
+}
+.calendar-header {
+  width: 100%;
+  box-sizing: border-box;
+  height: 130rpx;
+  padding: 30rpx 30rpx;
+  background-color: black;
+  color: white;
+  display: flex;
+  justify-content: flex-start;
+  align-content: center;
+  flex-direction: column;
+  font-size: 24rpx;
+  > view:first-child {
+    color: lightgray;
+  }
+}
+.pick-view {
+  width: 100%;
+  height: 100rpx;
+  position: relative;
+  font-size: 40rpx;
+  font-weight: 600;
+  .pick-img {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    > view {
+      width: 60rpx;
+      height: 100%;
+      position: relative;
+      > image {
+        width: 30rpx;
+        height: 30rpx;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+}
+picker {
+  width: 130rpx;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+.calendar-content {
+  width: 100%;
+  // padding: 10rpx 50rpx 30rpx 50rpx;
+  // background-color: lightyellow;
+  background-color: white;
+  box-sizing: border-box;
+  font-size: 24rpx;
+  .week {
+    margin: 40rpx 0;
+    > view {
+      flex: 1;
+      color: gray;
+    }
+  }
+  .day {
+    width: 100%;
+    margin-bottom: 40rpx;
+    font-size: 36rpx;
+    > view {
+      position: relative;
+      float: left;
+      width: calc(100% / 7);
+      height: 60rpx;
+      padding: 20rpx;
+      box-sizing: border-box;
+
+      margin-bottom: 20rpx;
+    }
+    .day-item {
+      z-index: 200;
+    }
+    .day-item-active {
+      color: #fff;
+    }
+    .not-view-month {
+      color: #fff;
+    }
+    .view-month-future {
+      color: #efefef;
+    }
+    .round {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: black;
+      width: 72rpx;
+      height: 72rpx;
+      border-radius: 50%;
+      z-index: 102;
+    }
+    .restime {
+      color: white;
+    }
+  }
+}
+</style>
+
+<template>
+  <view class="calendar-bg" wx:if="{{ visible }}">
+    <view class="calendar-wrapper">
+      <view class="calendar-content">
+        <!-- 星期 -->
+        <view class="week flex-center">
+          <block wx:for="{{ weeksCh }}" wx:key="{{ item }}">
+            <view class="flex-center">{{ item }}</view>
+          </block>
+        </view>
+        <!-- 双层循环 -->
+        <scroll-view scroll-y style="height: 600px;" scroll-into-view="{{ scroll_view }}">
+          <view
+            wx:for="{{ allDays }}"
+            wx:for-index="idx"
+            wx:key="{{ indx }}"
+            wx:for-item="month"
+            id="{{ 'month' + idx }}"
+          >
+            <!-- 年份和月份 -->
+            <view class="pick-view">
+              <view class="flex-center">{{months[idx].formatDate}}</view>
+            </view>
+            <!-- 日期循环 -->
+            <view class="day clearfix">
+              <block wx:for="{{ month }}" wx:key="{{ item.key }}" wx:for-index="d">
+                <view
+                  data-month-index="{{ idx }}"
+                  data-day-index="{{ d }}"
+                  @tap="changeResultTime"
+                  data-item="{{ item }}"
+                  data-index="{{ index }}"
+                  data-monthview="{{ month[15].month }}"
+                  class="flex-center"
+                >
+                  <view
+                    data-month="{{ item.month }}"
+                    class="day-item {{ item.month !== month[15].month ? 'not-view-month':'' }} {{ item.active && item.month === month[15].month ? 'day-item-active':'' }} {{ item.month == (current.months + 1) && item.year == current.years && item.day < current.date ? 'view-month-future':'' }} {{ item.year < current.years ? 'view-month-future':'' }} {{ item.year == current.years && item.month < (current.months + 1) ? 'view-month-future':'' }}"
+                  >{{ item.day }}</view>
+                  <view
+                    style="background-color: {{ color }}"
+                    wx-if="{{ item.active && item.month === month[15].month }}"
+                    class="round"
+                  ></view>
+                </view>
+              </block>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+      <view class="confirm">
+        <view
+          @tap="confirm"
+          class="confirm_btn {{ selectArr.length? 'confirm_btn_active' : '' }}"
+        >确定</view>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+import moment from 'moment';
+export default class Calendar extends wepy.component {
+  props = {
+    value: {
+      type: String,
+      default: moment().format('YYYY-MM-DD')
+    },
+    color: {
+      type: String,
+      default: '#32B650'
+    }
+  };
+
+  data = {
+    month_length: 5, // 展示多少个月份的数据，5表示从当前月开始，往后五个月
+    weeksCh: ['一', '二', '三', '四', '五', '六', '日'],
+    months: [], // 所有要显示的月份
+    scroll_view: 'month4',
+    current: {},
+    viewTime: {
+      year: '',
+      month: '',
+      day: '',
+      formatDay: '',
+      weekCh: ''
+    },
+    // 缓存数据
+    setDatas: [],
+    // 当前视图的day数组
+    viewDays: [], // 一个月的数据
+    allDays: [], // 从当前日期开始，往前推五个月的数据
+    visible: false,
+    selectArr: [] // 已经选中的日期
+  };
+  methods = {
+    show() {
+      this.visible = true;
+      this.$apply();
+    },
+    // pick选择器改变了
+    changePicker(e) {
+      // 改变当前视图日期数组
+      this.viewDays = this._getData(moment(e.detail.value, 'YYYY-MM'));
+    },
+    // 点击上个月
+    toPreMonth() {
+      // console.log(this.selectArr);
+      this.viewDays = this._getData(
+        moment(this.viewTime.formatDay).subtract(1, 'days')
+      );
+    },
+    // 点击下个月
+    toNextMonth() {
+      this.viewDays = this._getData(
+        moment(this.viewTime.formatDay)
+          .endOf('month')
+          .add(1, 'days')
+      );
+    },
+
+    // 点击某个日期
+    changeResultTime(e) {
+      const { item, dayIndex, monthIndex } = e.currentTarget.dataset;
+      this.selected(item, dayIndex, monthIndex);
+      // const { item, dayIndex, monthIndex, monthview } = e.currentTarget.dataset;
+      // // 点击了同一天
+      // if (moment().isSame(item.formatDay, 'day')) {
+      //   this._setTime(moment(item.formatDay), monthIndex, dayIndex);
+      // } else {
+      //   if (moment(item.formatDay).isBefore() || item.month !== monthview) {
+      //     // do something,
+      //     // 点击了当前日期之前的日期
+      //   } else {
+      //     this._setTime(moment(item.formatDay), monthIndex, dayIndex);
+      //   }
+      // }
+    },
+    // 用户点击确定
+    confirm() {
+      if (!this.selectArr.length) {
+        return false;
+      }
+      this.selectArr.sort(function(a, b) {
+        if (a.year < b.year) {
+          return -1;
+        } else if (a.year === b.year) {
+          if (a.month < b.month) {
+            return -1;
+          } else if (a.month === b.month) {
+            if (a.day < b.day) {
+              return -1;
+            } else {
+              return 1;
+            }
+          } else {
+            return 1;
+          }
+        } else {
+          return 1;
+        }
+      });
+      console.log(this.selectArr);
+    }
+  };
+  /**
+   * selected
+   * 日历多选当选，全选
+   * 赖新立
+   */
+  selected(item, dayIndex, monthIndex) {
+    this.allDays[monthIndex][dayIndex].active = !this.allDays[monthIndex][dayIndex].active;
+    let isSelect = this.allDays[monthIndex][dayIndex].active
+    if (isSelect) {
+      let dataArr = {
+        time: item.formatDay
+      }
+      this.setDatas.push(dataArr)
+    } else {
+      for (let i = 0; i < this.setDatas.length; i++) {
+        if (this.setDatas[i].time === item.formatDay) {
+          this.setDatas.splice(i, 1);
+        }
+      }
+    }
+    console.log(this.setDatas)
+    this.$apply();
+  }
+  /**
+   * _getData
+   * 返回当前视图日期数组
+   * @param time
+   * @return [{day:31,month:3,year:2018},{day:1,month:4,year:2018},...]
+   */
+  _getData(time = moment()) {
+    this._setViewTime(time);
+    // 令时间变为当月1号的
+    const firstDay = time.startOf('month');
+    // 计算当月1号是星期几
+    const firstDayOfWeek = firstDay.format('E');
+    // 计算上个月多余时间
+    const last = this._calDate(
+      firstDay.subtract(firstDayOfWeek - 1, 'days'),
+      firstDayOfWeek - 1
+    );
+    // 计算本月时间
+    let current = this._calDate(firstDay, firstDay.daysInMonth());
+    // 令时间变为本月末
+    const endDay = time.subtract(1, 'days');
+    // 当月末是星期几
+    const endDayOfWeek = endDay.format('E');
+    // 计算下个月多余时间
+    const next = this._calDate(endDay.add(1, 'days'), 7 - endDayOfWeek);
+    return [...last, ...current, ...next];
+  }
+  /**
+   * _setTime
+   * 设定导出的时间
+   * 日期第一次点击选中，第二次点击取消
+   * 选中第一个日期，选中第二个日期，中间的日期自动选中
+   * @param time moment对象
+   */
+  _setTime(time = moment(), monthIndex, dayIndex) {
+    let obj = this._dealMoment(time);
+    let day = Object.assign({}, obj, {
+      monthIndex: monthIndex,
+      dayIndex: dayIndex
+    });
+    // 当前日历中，已经选中了一个日期
+    if (this.selectArr.length === 1) {
+      if (this.selectArr[0].formatDay === obj.formatDay) {
+        this.allDays[monthIndex][dayIndex].active = false;
+        this.selectArr = [];
+      } else {
+        this.allDays[monthIndex][dayIndex].active = true;
+        this.selectArr.push(day);
+        // 开始连选
+        let oneByOne = false;
+        this.allDays = this.allDays.map(month => {
+          month = month.map(day => {
+            // 遍历到第一个被选中的日期
+            if (day.active) {
+              oneByOne = !oneByOne;
+            }
+
+            if (oneByOne) {
+              day.active = true;
+            }
+            return day;
+          });
+          return month;
+        });
+      }
+    } else if (this.selectArr.length >= 2) {
+      this.allDays = this.allDays.map(month => {
+        month = month.map(day => {
+          day.active = false;
+          return day;
+        });
+        return month;
+      });
+      this.allDays[monthIndex][dayIndex].active = true;
+      this.selectArr = [day];
+
+      // 当前还没有选中日期
+    } else {
+      this.allDays[monthIndex][dayIndex].active = true;
+      // console.log(this.allDays)
+      // console.log(this.allDays[monthIndex][dayIndex])
+      this.selectArr.push(day);
+    }
+    this.$apply();
+  }
+  /**
+   * _setTime
+   * 设定当前日历的时间
+   * @param time moment对象
+   */
+  _setViewTime(time = moment()) {
+    let obj = this._dealMoment(time.startOf('month'));
+    this.viewTime = obj;
+  }
+  /**
+   * _calDate
+   * 计算日期函数
+   * @param time moment对象
+   * @param length 返回数组的长度
+   * @return 返回日期数组
+   */
+  _calDate(time, length) {
+    let arr = [];
+    for (let i = 0; i < length; i++) {
+      arr.push(this._dealMoment(time));
+      time.add(1, 'days');
+    }
+    return arr;
+  }
+  /**
+   * _dealMoment
+   * 处理moment对象
+   * @param time moment对象
+   * @return 返回一个Object{year, month, day, formatDay}
+   */
+  _dealMoment(time) {
+    let { years, months, date } = time.toObject();
+    return {
+      year: years,
+      month: months + 1,
+      day: date,
+      weekCh: '周' + this.weeksCh[time.format('E') - 1],
+      formatDay: time.format('YYYY-MM-DD')
+    };
+  }
+  /**
+   * _init
+   * 初始化
+   * @param value '2018-02-02' YYYY-MM-DD
+   */
+  _init(value) {
+    // this.viewDays = this._getData(moment(value))
+    this.months = [];
+    this.allDays = [];
+    this.current = moment().toObject();
+    // 初始化日历开始的年月日
+    let currentMonth = moment().format('YYYY-MM');
+    let formatDate =
+      currentMonth.split('-')[0] +
+      '年' +
+      parseInt(currentMonth.split('-')[1]) +
+      '月';
+    this.months = [
+      {
+        date: currentMonth,
+        formatDate: formatDate
+      }
+    ];
+    //
+    for (var i = 1; i <= this.month_length; i++) {
+      let date = moment()
+        .add(i, 'months')
+        .format('YYYY-MM');
+      this.months.push({
+        date: date,
+        formatDate: parseInt(date.split('-')[1]) + '月'
+      });
+    }
+    this.months.map(item => {
+      let days = this._getData(moment(item.date));
+      this.allDays.push(days);
+    });
+    // 为日期添加一个状态变量
+    for (let i = 0; i < this.allDays.length; i++) {
+      for (let j = 0; j < this.allDays[i].length; j++) {
+        this.allDays[i][j].active = false;
+      }
+    }
+    this.scroll_view = 'month4';
+    this.$apply();
+    // console.log(this.allDays)
+    // this._setTime(moment(value))
+  }
+  onShow() {}
+  onLoad() {
+    // 每次载入时，默认被选中的日期时当前这天
+    this._init(this.value);
+  }
+}
+</script>
